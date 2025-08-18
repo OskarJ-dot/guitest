@@ -1,0 +1,1089 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DerekCentral</title>
+    <link rel="icon" type="./static/favicon.ico" href="./static/favicon.ico">
+
+    <link href="https://fonts.googleapis.com/css2?family=Satoshi:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js"></script>
+    <style>
+        :root {
+            --container-blur: 12px;
+            --container-radius: 20px;
+            --card-background-gradient: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0));
+            --text-color: #ffffff;
+            --text-color-darker: rgba(255, 255, 255, 0.8);
+            --icon-color: #ffffff;
+            --glow-color: rgba(255, 255, 255, 0.1);
+            --vibrant-toggle-color: #0096fa;
+            --like-color: #4dff94;
+            --dislike-color: #ff4d4d;
+        }
+
+        body {
+            background: #000000;
+            font-family: 'Satoshi', sans-serif;
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+        }
+        
+        .bokeh-container {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: -1; overflow: hidden;
+        }
+
+        .bokeh-dot {
+            position: absolute; border-radius: 50%; opacity: 0;
+            animation: fadeInOut 20s infinite;
+        }
+
+        @keyframes fadeInOut {
+            0%, 100% { opacity: 0; transform: scale(0.9); }
+            50% { opacity: 0.6; transform: scale(1); }
+        }
+
+        .page-wrapper { max-width: 1200px; margin: auto; }
+        .artwork-container { display: flex; gap: 20px; align-items: flex-start; margin-bottom: 20px; }
+        .main-content { flex: 3; }
+        .sidebar { flex: 1; position: sticky; top: 20px; }
+
+        .glass-panel {
+            background: var(--card-background-gradient);
+            backdrop-filter: blur(var(--container-blur));
+            -webkit-backdrop-filter: blur(var(--container-blur));
+            border-radius: var(--container-radius); padding: 25px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            margin-bottom: 20px; transition: box-shadow 0.4s ease;
+        }
+
+        .artwork-display img { width: 100%; border-radius: 10px; display: block; }
+        .artist-info { display: flex; align-items: center; gap: 15px; margin-bottom: 20px; }
+        .artist-info img { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; }
+        .artist-details { flex-grow: 1; }
+        .artist-info h3 { margin: 0; }
+        .artist-info p { font-size: 14px; color: var(--text-color-darker); margin: 5px 0 0; }
+        .user-actions { display: flex; align-items: center; justify-content: space-between; }
+        .action-buttons { display: flex; gap: 10px; align-items: center; }
+
+        .action-btn {
+            background: rgba(255, 255, 255, 0.2); border: none; color: var(--icon-color); font-size: 18px;
+            cursor: pointer; transition: transform 0.2s, background-color 0.2s; border-radius: 50%;
+            width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;
+        }
+        .action-btn:hover { background-color: rgba(255, 255, 255, 0.3); transform: scale(1.1); }
+        
+        .follow-button {
+            background: #0096fa; color: white; border: none; padding: 10px 20px; border-radius: 8px;
+            cursor: pointer; font-weight: bold; transition: background-color 0.3s, filter 0.2s, color 0.3s;
+            position: relative; overflow: hidden; white-space: nowrap;
+        }
+        .follow-button .follow-text { transition: opacity 0.2s ease-in-out; display: inline-block; }
+        .follow-button:hover { filter: brightness(1.15); }
+        .follow-button.following { background-color: rgba(255, 255, 255, 0.2); color: var(--like-color); }
+        .follow-button.animating { animation: follow-animation 0.6s ease-in-out; }
+        @keyframes follow-animation {
+            0% { transform: scale(1); }
+            50% { transform: scale(0.9); opacity: 0.5; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        
+        /* --- START: Twitter Heart Animation Implementation --- */
+        .heart {
+            background: url("https://cssanimation.rocks/images/posts/steps/heart.png") no-repeat;
+            background-position: 0 0;
+            cursor: pointer;
+            transition: background-position 1s steps(28);
+            transition-duration: 0s;
+        }
+
+        .heart.is-active {
+            transition-duration: 1s;
+        }
+        
+        /* Main action button heart */
+        .action-btn .heart {
+            width: 40px;
+            height: 40px;
+            background-size: 1160px 40px; /* 29 frames * 40px */
+        }
+        .action-btn .heart.is-active {
+            background-position: -1120px 0; /* 28 steps * 40px */
+        }
+
+        /* Thumbnail heart (for related works) */
+        .artwork-thumbnail-container .heart {
+            width: 32px;
+            height: 32px;
+            background-size: 928px 32px; /* 29 * 32px */
+        }
+        .artwork-thumbnail-container .heart.is-active {
+            background-position: -896px 0; /* 28 * 32px */
+        }
+
+        /* Heart wrapper for related works to control visibility */
+        .artwork-thumbnail-container .heart-wrapper {
+            position: absolute; top: 8px; right: 8px; background: rgba(0, 0, 0, 0.5); 
+            backdrop-filter: blur(5px); border: 1px solid rgba(255, 255, 255, 0.1); 
+            border-radius: 50%; width: 32px; height: 32px; 
+            opacity: 0; transform: scale(0.9); 
+            transition: opacity 0.2s, transform 0.2s, background-color 0.2s;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .artwork-thumbnail-container:hover .heart-wrapper {
+            opacity: 1; transform: scale(1);
+        }
+
+        /* Thumbnail heart (for other works scroller) */
+        .other-work-item .heart {
+             width: 28px;
+             height: 28px;
+             background-size: 812px 28px; /* 29 * 28px */
+        }
+        .other-work-item .heart.is-active {
+            background-position: -784px 0; /* 28 * 28px */
+        }
+        
+        /* Heart wrapper for scroller to control visibility */
+        .other-work-item .heart-wrapper {
+            position: absolute; top: 5px; right: 5px;
+            width: 28px; height: 28px; border-radius: 50%;
+            background: rgba(0,0,0,0.5);
+            opacity: 0; transform: scale(0.8);
+            transition: opacity 0.3s, transform 0.3s;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .other-work-item:hover .heart-wrapper {
+             opacity: 1; transform: scale(1);
+        }
+        /* --- END: Heart Animation --- */
+
+        .statistics h3 { cursor: pointer; user-select: none; }
+        .statistics h3 span {
+            display: inline-block; transition: transform 0.2s, filter 0.3s, color 0.3s;
+            color: #ffffff; filter: drop-shadow(0 0 0px transparent);
+        }
+        .statistics h3:hover span {
+            transform: translateY(-2px); color: var(--letter-color, #ffffff);
+            filter: drop-shadow(0 0 8px var(--letter-color, #ffffff));
+        }
+
+        @keyframes rainbow-glow-border {
+            0%, 100% { box-shadow: 0 0 15px #ff00de; } 25% { box-shadow: 0 0 15px #ff9d00; }
+            50% { box-shadow: 0 0 15px #15ff00; } 75% { box-shadow: 0 0 15px #00e5ff; }
+        }
+        .statistics:hover { animation: rainbow-glow-border 4s linear infinite; }
+
+        .stats-list { list-style: none; padding: 0; margin: 0; font-size: 14px; }
+        .stats-list li {
+            display: flex; justify-content: space-between; padding: 8px 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px;
+            transition: background-color 0.3s, filter 0.3s; --stat-glow-color: transparent;
+            filter: drop-shadow(0 0 8px var(--stat-glow-color));
+        }
+        .stats-list li:hover { background-color: rgba(255, 255, 255, 0.1); }
+        .stats-list li:last-child { border-bottom: none; }
+        .stats-list .stat-label { color: var(--text-color-darker); }
+        .stats-list .stat-value { font-weight: 500; }
+        
+        .toggle-menu { display: flex; justify-content: space-around; align-items: center; flex-wrap: wrap; gap: 20px; }
+        .toggle-item { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+        .toggle-switch { position: relative; display: inline-block; width: 40px; height: 22px; }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(255, 255, 255, 0.2); transition: .4s; border-radius: 22px;
+        }
+        .slider:before {
+            position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px;
+            background-color: white; transition: .4s; border-radius: 50%;
+        }
+        input:checked + .slider { background-color: var(--vibrant-toggle-color); }
+        input:checked + .slider:before { transform: translateX(18px); }
+
+        .toggleable-content { display: none; animation: fadeIn 0.5s ease-in-out; }
+        .toggleable-content.visible { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .artist-other-works-panel { padding: 20px 0 20px 25px; }
+        
+        /* --- "By Artist Name" Header Styles --- */
+        .other-works-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            padding-right: 25px;
+        }
+        .other-works-header img {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+        .other-works-header h3 {
+            flex-grow: 1;
+            margin: 0;
+            font-size: 18px;
+            font-weight: bold;
+            transition: color 0.4s ease, text-shadow 0.4s ease;
+        }
+        .other-works-header h3:hover {
+             text-shadow: 0 0 8px var(--glow-color, #ffffff);
+             cursor: pointer;
+        }
+        .other-works-header .follow-button {
+            padding: 8px 16px;
+            font-size: 14px;
+        }
+
+        .other-works-scroller {
+            display: flex;
+            gap: 15px;
+            overflow-x: auto;
+            padding-bottom: 15px; /* space for scrollbar */
+        }
+        .other-works-scroller::-webkit-scrollbar { height: 8px; }
+        .other-works-scroller::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.3); border-radius: 4px; }
+        .other-works-scroller::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 4px; }
+        .other-works-scroller::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.4); }
+
+        .other-work-item {
+            flex-shrink: 0;
+            position: relative;
+            width: 100px;
+            height: 100px;
+            border-radius: 10px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: transform 0.3s ease, filter 0.35s ease;
+            --glow-color: #0096fa;
+        }
+        .other-work-item:hover {
+            transform: scale(1.1);
+            filter: drop-shadow(0 0 15px var(--glow-color));
+        }
+        .other-work-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .multi-image-indicator {
+            position: absolute;
+            top: 5px;
+            left: 5px; /* Moved to left to not interfere with heart */
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+            padding: 2px 6px;
+            border-radius: 5px;
+            pointer-events: none;
+            z-index: 2;
+        }
+        .other-work-item:hover .multi-image-indicator { opacity: 0; } /* Hide indicator when heart shows */
+
+
+        .tag-category { margin-bottom: 20px; } .tag-category:last-child { margin-bottom: 0; }
+        .tag-category h4 { margin: 0 0 10px; color: var(--text-color-darker); border-bottom: 1px solid rgba(255, 255, 255, 0.2); padding-bottom: 5px; font-size: 16px; }
+        .tag { display: inline-block; background: rgba(255, 255, 255, 0.2); padding: 5px 12px; border-radius: 15px; margin-right: 8px; margin-bottom: 8px; font-size: 14px; cursor: pointer; transition: background-color 0.2s; }
+        .tag:hover { background-color: rgba(255, 255, 255, 0.3); }
+
+        .comment-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+        .comment-toolbar .toolbar-left { display: flex; align-items: center; gap: 15px; }
+        
+        .select-wrapper {
+            position: relative;
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            display: inline-block;
+        }
+        .select-wrapper::after {
+            content: '▼';
+            font-size: 12px;
+            position: absolute;
+            top: 50%;
+            right: 12px;
+            transform: translateY(-50%);
+            color: var(--text-color-darker);
+            pointer-events: none;
+        }
+        .comment-sort-select {
+            -webkit-appearance: none; -moz-appearance: none; appearance: none;
+            background: transparent; border: none; color: var(--text-color);
+            padding: 8px 32px 8px 12px; font-family: 'Satoshi', sans-serif;
+            font-size: 14px; cursor: pointer;
+        }
+        .comment-sort-select option { background: #282828; color: white; }
+        
+        #comments-list-container {
+            transition: opacity 0.3s ease-out, transform 0.3s ease-out;
+        }
+        #comments-list-container.is-sorting {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        .comment { display: flex; gap: 15px; background: rgba(0, 0, 0, 0.2); padding: 15px; border-radius: 10px; margin-bottom: 15px; }
+        .comment img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+        .comment-content { width: 100%; }
+        .comment-header { display: flex; align-items: baseline; gap: 10px; margin-bottom: 5px; }
+        .comment-author { font-weight: bold; margin: 0; transition: color 0.4s ease, text-shadow 0.4s ease; cursor: pointer; }
+        .comment-author:hover { text-shadow: 0 0 8px var(--glow-color, #ffffff); }
+        .comment-date { font-size: 12px; color: rgba(255, 255, 255, 0.6); margin: 0; }
+        .comment-text { margin: 8px 0; color: var(--text-color-darker); }
+        .comment-text.text-is-fading-out { animation: fadeOutUp 0.3s forwards; }
+        .comment-text.text-is-fading-in { animation: fadeInDown 0.3s forwards; }
+        @keyframes fadeOutUp { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-15px); } }
+        @keyframes fadeInDown { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+
+        .comment-actions { display: flex; align-items: center; gap: 20px; margin-top: 12px; font-size: 14px; }
+        .comment-actions .action-btn-small {
+            background: transparent; border: none; color: var(--text-color-darker);
+            cursor: pointer; transition: color 0.2s; padding: 0; font-size: 14px; font-weight: bold;
+        }
+        .comment-actions .action-btn-small:hover { color: var(--text-color); }
+        .vote-buttons { display: flex; align-items: center; gap: 8px; }
+        .vote-buttons button { background: none; border: none; font-size: 18px; cursor: pointer; transition: transform 0.2s, color 0.2s; color: var(--text-color-darker); }
+        .vote-buttons button:hover { transform: scale(1.2); }
+        .like-btn.voted-like { color: var(--like-color); }
+        .dislike-btn.voted-dislike { color: var(--dislike-color); }
+
+        .replies-container { margin-left: 30px; border-left: 2px solid rgba(255, 255, 255, 0.1); padding-left: 25px; margin-top: 15px; }
+        .reply-form { display: none; margin-top: 10px; }
+        .reply-form.visible { display: block; }
+        .reply-input { width: 100%; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; padding: 10px; color: white; margin-bottom: 8px; }
+
+        .related-artwork-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 25px; }
+        .related-artwork-item { position: relative; background: transparent; }
+        .artwork-thumbnail-container { position: relative; background: #000; border-radius: 10px; overflow: hidden; aspect-ratio: 1 / 1; display: flex; align-items: center; justify-content: center; }
+        .artwork-thumbnail-container img.artwork-thumbnail { width: 100%; height: 100%; object-fit: contain; }
+        .artwork-details { padding: 12px 5px; }
+        .artwork-title { font-weight: 500; font-size: 15px; margin: 0 0 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .artwork-artist-info { display: flex; align-items: center; gap: 8px; cursor: pointer; position: relative; }
+        .artwork-artist-info img { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; }
+        .artwork-artist-info .artwork-artist { font-size: 14px; color: var(--text-color-darker); transition: color 0.2s; }
+        .artwork-artist-info:hover .artwork-artist { color: var(--text-color); }
+        
+        .artist-profile-preview {
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%) translateY(10px) scale(0.95);
+            width: 320px;
+            z-index: 10;
+            background: rgba(30, 30, 30, 0.8);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, transform 0.3s ease, visibility 0.3s;
+            pointer-events: none;
+            padding-bottom: 20px;
+            overflow: hidden;
+        }
+        .artist-profile-preview::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 120px;
+            background-image: var(--banner-image);
+            background-size: cover;
+            background-position: center;
+            mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 50%, rgba(0,0,0,0) 100%);
+            -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 50%, rgba(0,0,0,0) 100%);
+            z-index: 1;
+        }
+
+        .artwork-artist-info:hover .artist-profile-preview { opacity: 1; visibility: visible; transform: translateX(-50%) translateY(0) scale(1); pointer-events: auto; }
+        
+        .preview-content { padding: 0 20px; position: relative; z-index: 2; }
+        .preview-header { display: flex; align-items: flex-end; gap: 12px; margin-bottom: 15px; margin-top: 65px; }
+        
+        .pfp-container { 
+            width: 70px; height: 70px; border-radius: 50%; 
+            border: 3px solid rgba(255, 255, 255, 0.8);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+            transition: filter 0.3s ease;
+            flex-shrink: 0;
+        }
+        .pfp-container:hover {
+             filter: drop-shadow(0 0 15px var(--glow-color, #0096fa));
+        }
+        .pfp-container img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+        
+        .preview-header-info { padding-bottom: 5px; }
+        .preview-name { font-size: 18px; font-weight: bold; margin: 0; }
+        .preview-status {
+            font-size: 13px; font-weight: 500;
+            color: var(--text-color-darker);
+            margin: 4px 0 0;
+            display: flex; align-items: center; gap: 6px;
+        }
+        .preview-status span {
+            width: 8px; height: 8px; border-radius: 50%;
+            background-color: var(--status-color, #ccc);
+        }
+        .preview-status.status-accepting { --status-color: #4dff94; }
+        .preview-status.status-on-hold { --status-color: #ffc107; }
+        .preview-status.status-closed { --status-color: #ff4d4d; }
+
+        .preview-actions { display: flex; justify-content: flex-end; margin-top: -60px; position: relative; z-index: 2; padding-right: 20px;}
+        .preview-artworks { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 15px; }
+        .preview-art-item { 
+            position: relative; border-radius: 8px; overflow: hidden; aspect-ratio: 1 / 1; 
+            --glow-color: #0096fa;
+            transition: transform 0.3s ease, filter 0.3s ease;
+        }
+        .preview-art-item:hover {
+            transform: scale(1.08);
+            filter: drop-shadow(0 0 12px var(--glow-color));
+        }
+        .preview-art-item img { width: 100%; height: 100%; object-fit: cover; }
+        .preview-heart-btn {
+            position: absolute; top: 5px; right: 5px; background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(3px); border: none; color: white; font-size: 14px; border-radius: 50%;
+            width: 24px; height: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+            transition: background-color 0.2s, transform 0.2s;
+        }
+        .preview-heart-btn:hover { background-color: rgba(255, 255, 255, 0.2); transform: scale(1.1); }
+        .preview-heart-btn.liked { background-color: #ff4d4d; }
+        
+        .interactive-image { cursor: pointer; --glow-color: #0096fa; transition: transform 0.3s ease, filter 0.35s ease; }
+        .interactive-image:hover { transform: scale(1.05); filter: drop-shadow(0 0 25px var(--glow-color)); }
+
+        #like-checkbox { display: none; }
+        #like-checkbox + label {
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #like-checkbox + label > .checked { display: none; }
+        #like-checkbox:checked + label > .checked { display: block; }
+        #like-checkbox:checked + label > .unchecked { display: none; }
+        
+        .like-animation .hand { animation: hand-animation 1.5s ease-in; fill: #fff; transform-origin: center; }
+        .like-animation .line { fill: transparent; stroke-dasharray: 40; stroke-dashoffset: 40; stroke-linecap:round; stroke-linejoin:round; }
+        .like-animation .line-1 { stroke: #fb493f; stroke-width: 2; animation: line-first 1.5s ease-in; }
+        .like-animation .line-2 { stroke: #cbfcc9; stroke-width: 1.5; animation: line-first 1.5s ease-in; }
+        .like-animation .line-3 { stroke: #dec83c; stroke-width: 3; animation: line-second 1.5s ease-in; }
+        .like-animation .line-4 { stroke: #cbfcc9; stroke-width: 2; animation: line-second 1.5s ease-in; }
+        .like-animation .line-5 { stroke: #fb493f; stroke-width: 2; animation: line-third 1.5s ease-in; }
+        .like-animation .line-6 { stroke: #ab71f7; stroke-width: 2; animation: line-third 1.5s ease-in; }
+        .like-animation .line-7 { stroke: #dec83c; stroke-width: 2; animation: line-third 1.8s ease-in; }
+        .like-animation .circle-1 { fill: #dec83c; opacity: 0; animation: circle-pop 1.5s ease-in; }
+        .like-animation .circle-2 { fill: #fb493f; opacity: 0; animation: circle-pop 1.5s ease-in; }
+        .like-animation .circle-3 { fill: #cbfcc9; opacity: 0; animation: circle-pop 1.5s ease-in; }
+        .like-animation .flower-1 { fill: #dec83c; opacity: 0; animation: flower-pop-1 1.5s ease-in; }
+        .like-animation .flower-2 { fill: #cbfcc9; opacity: 0; animation: flower-pop-2 1.5s ease-in; }
+        .like-animation .flower-3 { fill: #fb493f; opacity: 0; animation: flower-pop-1 1.5s ease-in; }
+
+        @keyframes flower-pop-1 { 0%, 49% { opacity: 0; } 50% { opacity: .5; } 55%, 70% { opacity: 1; } 80%, 100% { opacity: 0; } }
+        @keyframes flower-pop-2 { 0%, 55% { opacity: 0; } 60% { opacity: .5; } 65%, 80% { opacity: 1; } 90%, 100% { opacity: 0; } }
+        @keyframes circle-pop { 0%, 49% { opacity: 0; } 50% { opacity: 1; } 60%, 100% { opacity: 0; } }
+        @keyframes line-first { 20% { stroke-dashoffset: 40; } 40% { stroke-dashoffset: 0; } 50% { stroke-dashoffset: 40; } }
+        @keyframes line-second { 30% { stroke-dashoffset: 40; } 40% { stroke-dashoffset: 0; } 50% { stroke-dashoffset: 40; } }
+        @keyframes line-third { 35% { stroke-dashoffset: 40; } 40% { stroke-dashoffset: 0; } 50% { stroke-dashoffset: 40; } }
+        @keyframes hand-animation { 0% { fill: #fff; transform: scale(.3) rotate(10deg); } 5%{ transform: scale(.5) rotate(10deg); } 20% { fill: #cbfcc9; transform: scale(1.3) rotate(-15deg); } 40% { fill: #ab71f7; transform: scale(1.3) rotate(-30deg); } 55% { transform: scale(1.3) rotate(-30deg); } 60% { fill: #ddd926; transform: scale(1) rotate(10deg); } 66% { fill: #f28032; transform: scale(1) rotate(2deg); } 70% { fill: #fe443b; transform: scale(1) rotate(0deg); } 100%{ fill: #fff; transform: scale(1) rotate(0deg); } }
+    </style>
+</head>
+<body>
+    <div class="bokeh-container"></div>
+    <div class="page-wrapper">
+         <div class="artwork-container">
+            <div class="main-content">
+                <div class="glass-panel artwork-display">
+                    <img src="./static/img21.jpg" alt="Artwork" id="main-artwork" class="interactive-image">
+                </div>
+            </div>
+            <div class="sidebar">
+                <div class="glass-panel artist-info-container">
+                    <div class="artist-info">
+                        <img src="./static/img3.jpg" alt="Artist Avatar" id="main-pfp" class="interactive-image">
+                        <div class="artist-details"><h3 id="main-artist-name">艺术家名字</h3><p>一位热情的数字艺术家。</p></div>
+                    </div>
+                    <div class="user-actions">
+                        <div class="action-buttons">
+                            <div class="action-btn">
+                                <input type="checkbox" id="like-checkbox">
+                                <label for="like-checkbox" title="Like">
+                                    <svg class="unchecked" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" width="24" height="24" stroke="#fff" stroke-width="2.5" fill="none"><path d="m17.5,29.71c-.55,0-1.02-.2-1.41-.59-.39-.39-.59-.86-.59-1.41v-10.18c0-.27.05-.52.16-.76.11-.24.25-.45.44-.64l5.43-5.4c.25-.23.55-.38.89-.42.34-.05.67,0,.99.17.32.17.55.4.69.7.14.3.17.61.09.92l-1.12,4.6h5.45c.53,0,1,.2,1.4.6.4.4.6.87.6,1.4v2c0,.12-.01.24-.04.38-.02.13-.06.26-.11.38l-3,7.05c-.15.33-.4.62-.75.85-.35.23-.72.35-1.1.35h-8Zm-6,0c-.55,0-1.02-.2-1.41-.59-.39-.39-.59-.86-.59-1.41v-9c0-.55.2-1.02.59-1.41.39-.39.86-.59,1.41-.59s1.02.2,1.41.59c.39.39.59.86.59,1.41v9c0,.55-.2,1.02-.59,1.41-.39-.39-.86.59-1.41.59Z"/></svg>
+                                    <svg class="checked like-animation" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" width="40" height="40"><circle class="circle-1" cx="8.85" cy="7.44" r="1.5"/><circle class="circle-2" cx="33.2" cy="33.67" r="1"/><circle class="circle-3" cx="32.08" cy="8.25" r=".75"/><circle class="circle-3" cx="8.33" cy="35.38" r=".75"/><path class="flower-1" d="m9.1,5.37c-.24.14-.54.06-.68-.18s-.06-.54.18-.68.54-.06.68.18.06.54-.18.68Zm-2.42.32c-.28,0-.5.22-.5.5,0,.28.22.5.5.5s.5-.22.5-.5c0-.28-.22-.5-.5-.5Zm-.43,2.75c-.14.24-.06.54.18.68s.54.06.68-.18.06-.54-.18-.68-.54-.06-.68.18Zm2.17,1.75c.14.24.44.32.68.18s.32-.44.18-.68-.44-.32-.68-.18-.32.44-.18.68Zm2.6-1c.28,0,.5-.22.5-.5s-.22-.5-.5-.5-.5.22-.5.5.22.5.5.5Zm.43-2.75c.14-.24.06-.54-.18-.68s-.54-.06-.68.18-.06.54.18.68.54.06.68-.18Z"/><path class="flower-2" d="m7.83,33.13c0-.28.22-.5.5-.5s.5.22.5.5c0,.28-.22.5-.5.5s-.5-.22-.5-.5Zm-1.02,1.38c.14-.24.06-.54-.18-.68s-.54-.06-.68.18-.06.54.18.68.54.06.68-.18Zm0,1.75c-.14-.24-.44-.32-.68-.18s-.32.44-.18.68.44.32.68.18.32-.44.18-.68Zm1.52.88c-.28,0-.5.22-.5.5s.22.5.5.5.5-.22.5-.5-.22-.5-.5-.5Zm1.52-.87c-.14.24-.06.54.18.68s.54.06.68-.18.06-.54-.18-.68-.54-.06-.68.18Zm0-1.75c.14.24.44.32.68.18s.32-.44.18-.68-.44-.32-.68-.18-.32.44.18-.68Z"/><path class="flower-3" d="m32.7,36.17c0-.28.22-.5.5-.5s.5.22.5.5c0,.28-.22.5-.5.5s-.5-.22-.5-.5Zm3.1-1c.14-.24.06-.54-.18-.68s-.54-.06-.68.18-.06.54.18.68.54.06.68-.18Zm0-3c-.14-.24-.44-.32-.68-.18s-.32.44-.18.68.44.32.68.18.32-.44.18-.68Zm-2.6-1.5c-.28,0-.5.22-.5.5,0,.28.22.5.5.5s.5-.22.5-.5-.22-.5-.5-.5Zm-2.6,1.5c-.14.24-.06.54.18.68s.54.06.68-.18.06-.54-.18-.68-.54-.06-.68.18Zm0,3c.14.24.44.32.68.18s.32-.44.18-.68-.44-.32-.68-.18-.32-.44.18-.68Z"/><path class="flower-2" d="m32.58,6c0,.28-.22-.5-.5.5s-.5-.22-.5-.5.22-.5.5-.5.5.22.5.5Zm-2.88.87c-.14.24-.06-.54.18.68s.54.06.68-.18.06-.54-.18-.68-.54-.06-.68.18Zm0,2.75c.14.24.44.32.68.18s.32-.44.18-.68-.44-.32-.68-.18-.32-.44.18-.68Zm2.38,1.38c.28,0,.5-.22.5-.5,0-.28-.22-.5-.5-.5s-.5.22-.5.5c0,.28.22.5.5.5Zm2.38-1.37c.14-.24.06-.54-.18-.68s-.54-.06-.68.18-.06.54.18.68.54.06.68-.18Zm0-2.75c-.14-.24-.44-.32-.68-.18s-.32.44-.18-.68.44.32.68.18.32-.44.18-.68Z"/><line class="line line-1" x1="33.2" y1="33.67" x2="37.16" y2="37.63"/><line class="line line-4" x1="32.08" y1="8.25" x2="36.74" y2="3.59"/><line class="line line-3" x1="8.73" y1="7.3" x2="4.63" y2="3.2"/><line class="line line-2" x1="8.33" y1="35.38" x2="5.72" y2="37.99"/><path class="line line-2" d="m24.47,8.03c-1.32-1.84,1.6-5.11,2.06-2.97.37,1.74-4.2,0-2.68-2.97"/><path class="line line-6" d="m27.15,32.66c.75,1.37-2.07,5.62-2.82,3.96-.64-1.42,3.02-1.3,3.76,1.36"/><line class="line line-7" x1="33.46" y1="29.71" x2="37.97" y2="29.71"/><line class="line line-5" x1="7.56" y1="13.99" x2="2.91" y2="13.99"/><path class="hand" d="m17.5,29.71c-.55,0-1.02-.2-1.41-.59-.39-.39-.59-.86-.59-1.41v-10.18c0-.27.05-.52.16-.76.11-.24.25-.45.44-.64l5.43-5.4c.25-.23.55-.38.89-.42.34-.05.67,0,.99.17.32.17.55.4.69.7.14.3.17.61.09.92l-1.12,4.6h5.45c.53,0,1,.2,1.4.6.4.4.6.87.6,1.4v2c0,.12-.01.24-.04.38-.02.13-.06.26-.11.38l-3,7.05c-.15.33-.4.62-.75.85-.35.23-.72.35-1.1.35h-8Zm-6,0c-.55,0-1.02-.2-1.41-.59-.39-.39-.59-.86-.59-1.41v-9c0-.55.2-1.02.59-1.41.39-.39.86-.59,1.41-.59s1.02.2,1.41.59c.39.39.59.86.59,1.41v9c0,.55-.2,1.02-.59,1.41-.39-.39-.86.59-1.41.59Z"/></svg>
+                                </label>
+                            </div>
+                            <!-- --- MODIFICATION: Bookmark is now the animated heart --- -->
+                            <div class="action-btn" title="Heart"><div class="heart"></div></div>
+                            <button class="action-btn" title="Share">🔗</button>
+                        </div>
+                        <button class="follow-button" id="main-follow-btn"><span class="follow-text">Follow</span></button>
+                    </div>
+                </div>
+                <div class="glass-panel statistics">
+                    <h3 id="stats-title">Statistics</h3>
+                    <ul class="stats-list">
+                        <li><span class="stat-label">Views</span><span class="stat-value">10,834</span></li>
+                        <li><span class="stat-label">Like Count</span><span class="stat-value">4,588</span></li>
+                        <li><span class="stat-label">Bookmarks</span><span class="stat-value">2,105</span></li>
+                        <li><span class="stat-label">Safety</span><span class="stat-value">Safe</span></li>
+                        <li><span class="stat-label">Quality</span><span class="stat-value">8.56</span></li>
+                        <li><span class="stat-label">Resolution</span><span class="stat-value">2400x3600</span></li>
+                        <li><span class="stat-label">Upload Date</span><span class="stat-value">Aug 12, 2025</span></li>
+                        <li><span class="stat-label">AI Generated</span><span class="stat-value">No</span></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="glass-panel artist-other-works-panel">
+            <!-- --- MODIFICATION: Header for the "By Artist Name" scroller --- -->
+            <div class="other-works-header" id="other-works-header">
+                <img src="./static/img3.jpg" alt="Artist Avatar" id="other-works-pfp" class="interactive-image">
+                <h3 id="other-works-artist-name">By 艺术家名字</h3>
+                <button class="follow-button" id="secondary-follow-btn"><span class="follow-text">Follow</span></button>
+            </div>
+            <div class="other-works-scroller" id="other-works-container">
+                <!-- Artworks will be dynamically inserted here by JavaScript -->
+            </div>
+        </div>
+        <div class="glass-panel toggle-menu">
+            <div class="toggle-item"><span>Tags</span><label class="toggle-switch"><input type="checkbox" data-target="#tags-panel"><span class="slider"></span></label></div>
+            <div class="toggle-item"><span>Description</span><label class="toggle-switch"><input type="checkbox" data-target="#description-panel"><span class="slider"></span></label></div>
+            <div class="toggle-item"><span>Artist's Notes</span><label class="toggle-switch"><input type="checkbox" data-target="#commentary-panel"><span class="slider"></span></label></div>
+            <div class="toggle-item"><span>Comments</span><label class="toggle-switch"><input type="checkbox" data-target="#comments-section" checked><span class="slider"></span></label></div>
+        </div>
+        <div id="tags-panel" class="glass-panel toggleable-content"><div class="tag-category"><h4>Copyright</h4><span class="tag">Genshin Impact</span><span class="tag">原神</span></div><div class="tag-category"><h4>Characters</h4><span class="tag">Kamisato Ayaka</span><span class="tag">神里绫华</span></div><div class="tag-category"><h4>Tags</h4><span class="tag">Illustration</span><span class="tag">Beautiful</span><span class="tag">Anime</span><span class="tag">Fan Art</span></div></div>
+        <div id="description-panel" class="glass-panel toggleable-content"><h3>Description</h3><p>A detailed piece of Kamisato Ayaka from Genshin Impact, capturing a serene moment amidst the wind.</p></div>
+        <div id="commentary-panel" class="glass-panel toggleable-content"><h3>Artist's Notes</h3><p>Thank you for all the support! If you like my work, please consider checking out my new art book.</p></div>
+        
+        <div id="comments-section" class="glass-panel toggleable-content visible">
+            <div class="comment-toolbar">
+                <div class="toolbar-left"><h3 id="comment-count">Comments</h3><label for="comment-sort">Sort by:</label></div>
+                <div class="select-wrapper"><select id="comment-sort" class="comment-sort-select"><option value="mostRecent">Most Recent</option><option value="oldest">Oldest</option><option value="mostLiked">Most Liked</option><option value="mostDisliked">Most Disliked</option><option value="mostEngaged">Most Engaged</option></select></div>
+            </div>
+            <div id="comments-list-container"></div>
+        </div>
+
+        <div class="glass-panel related-works-panel">
+            <h3>Related Works</h3>
+            <div class="related-artwork-grid">
+                <div class="related-artwork-item">
+                    <div class="artwork-thumbnail-container">
+                        <img src="./static/img6.jpg" alt="Related Artwork" class="artwork-thumbnail interactive-image">
+                        <!-- --- MODIFICATION: New animated heart is here --- -->
+                        <div class="heart-wrapper"><div class="heart"></div></div>
+                    </div>
+                    <div class="artwork-details">
+                        <p class="artwork-title">レールガン</p>
+                        <div class="artwork-artist-info">
+                            <img src="./static/img8.jpg" alt="Artist Avatar" class="artist-pfp interactive-image">
+                            <p class="artwork-artist">テストユーザー</p>
+                             <div class="artist-profile-preview" data-banner-src="./static/img15.jpg">
+                                <div class="preview-actions"><button class="follow-button">Follow</button></div>
+                                <div class="preview-content">
+                                    <div class="preview-header">
+                                        <div class="pfp-container"><img src="./static/img8.jpg" alt="Artist Avatar"></div>
+                                        <div class="preview-header-info">
+                                            <p class="preview-name">テストユーザー</p>
+                                            <p class="preview-status status-accepting"><span></span>Accepting requests</p>
+                                        </div>
+                                    </div>
+                                    <div class="preview-artworks">
+                                        <div class="preview-art-item"><img src="./static/img1.jpg" alt="Featured Art 1"><button class="preview-heart-btn">♡</button></div>
+                                        <div class="preview-art-item"><img src="./static/img2.jpg" alt="Featured Art 2"><button class="preview-heart-btn">♡</button></div>
+                                        <div class="preview-art-item"><img src="./static/img7.jpg" alt="Featured Art 3"><button class="preview-heart-btn">♡</button></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="related-artwork-item">
+                    <div class="artwork-thumbnail-container">
+                        <img src="./static/img20.jpg" alt="Related Artwork" class="artwork-thumbnail interactive-image">
+                        <!-- --- MODIFICATION: New animated heart is here --- -->
+                        <div class="heart-wrapper"><div class="heart"></div></div>
+                    </div>
+                    <div class="artwork-details">
+                        <p class="artwork-title">Railgun</p>
+                        <div class="artwork-artist-info">
+                            <img src="./static/img19.jpg" alt="Artist Avatar" class="artist-pfp interactive-image">
+                            <p class="artwork-artist">Test User</p>
+                             <div class="artist-profile-preview" data-banner-src="./static/img18.jpg">
+                                <div class="preview-actions"><button class="follow-button">Follow</button></div>
+                                <div class="preview-content">
+                                    <div class="preview-header">
+                                        <div class="pfp-container"><img src="./static/img19.jpg" alt="Artist Avatar"></div>
+                                        <div class="preview-header-info">
+                                            <p class="preview-name">Test User</p>
+                                            <p class="preview-status status-accepting"><span></span>Accepting requests</p>
+                                        </div>
+                                    </div>
+                                    <div class="preview-artworks">
+                                        <div class="preview-art-item"><img src="./static/img20.jpg" alt="Featured Art 1"><button class="preview-heart-btn">♡</button></div>
+                                        <div class="preview-art-item"><img src="./static/img17.jpg" alt="Featured Art 2"><button class="preview-heart-btn">♡</button></div>
+                                        <div class="preview-art-item"><img src="./static/img16.jpg" alt="Featured Art 3"><button class="preview-heart-btn">♡</button></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="related-artwork-item">
+                    <div class="artwork-thumbnail-container">
+                        <img src="./static/img18.jpg" alt="Related Artwork" class="artwork-thumbnail interactive-image">
+                        <!-- --- MODIFICATION: New animated heart is here --- -->
+                        <div class="heart-wrapper"><div class="heart"></div></div>
+                    </div>
+                    <div class="artwork-details">
+                        <p class="artwork-title">레일건</p>
+                        <div class="artwork-artist-info">
+                            <img src="./static/img12.jpg" alt="Artist Avatar" class="artist-pfp interactive-image">
+                            <p class="artwork-artist">테스트 사용자</p>
+                             <div class="artist-profile-preview" data-banner-src="./static/img11.jpg">
+                                <div class="preview-actions"><button class="follow-button">Follow</button></div>
+                                <div class="preview-content">
+                                    <div class="preview-header">
+                                        <div class="pfp-container"><img src="./static/img12.jpg" alt="Artist Avatar"></div>
+                                        <div class="preview-header-info">
+                                            <p class="preview-name">테스트 사용자</p>
+                                            <p class="preview-status status-accepting"><span></span>Accepting requests</p>
+                                        </div>
+                                    </div>
+                                    <div class="preview-artworks">
+                                        <div class="preview-art-item"><img src="./static/img13.jpg" alt="Featured Art 1"><button class="preview-heart-btn">♡</button></div>
+                                        <div class="preview-art-item"><img src="./static/img14.jpg" alt="Featured Art 2"><button class="preview-heart-btn">♡</button></div>
+                                        <div class="preview-art-item"><img src="./static/img15.jpg" alt="Featured Art 3"><button class="preview-heart-btn">♡</button></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="related-artwork-item">
+                    <div class="artwork-thumbnail-container">
+                        <img src="./static/img16.jpg" alt="Related Artwork" class="artwork-thumbnail interactive-image">
+                        <!-- --- MODIFICATION: New animated heart is here --- -->
+                        <div class="heart-wrapper"><div class="heart"></div></div>
+                    </div>
+                    <div class="artwork-details">
+                        <p class="artwork-title">轨道炮</p>
+                        <div class="artwork-artist-info">
+                            <img src="./static/img4.jpg" alt="Artist Avatar" class="artist-pfp interactive-image">
+                            <p class="artwork-artist">测试用户</p>
+                             <div class="artist-profile-preview" data-banner-src="./static/img7.jpg">
+                                <div class="preview-actions"><button class="follow-button">Follow</button></div>
+                                <div class="preview-content">
+                                    <div class="preview-header">
+                                        <div class="pfp-container"><img src="./static/img4.jpg" alt="Artist Avatar"></div>
+                                        <div class="preview-header-info">
+                                            <p class="preview-name">测试用户</p>
+                                            <p class="preview-status status-accepting"><span></span>Accepting requests</p>
+                                        </div>
+                                    </div>
+                                    <div class="preview-artworks">
+                                        <div class="preview-art-item"><img src="./static/img1.jpg" alt="Featured Art 1"><button class="preview-heart-btn">♡</button></div>
+                                        <div class="preview-art-item"><img src="./static/img2.jpg" alt="Featured Art 2"><button class="preview-heart-btn">♡</button></div>
+                                        <div class="preview-art-item"><img src="./static/img3.jpg" alt="Featured Art 3"><button class="preview-heart-btn">♡</button></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- ... other related artwork items ... -->
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+
+            function getLuminance(rgb) {
+                const [r, g, b] = rgb.map(c => { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); });
+                return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+            }
+            function getContrastRatio(rgb1, rgb2) {
+                const lum1 = getLuminance(rgb1); const lum2 = getLuminance(rgb2);
+                return (Math.max(lum1, lum2) + 0.05) / (Math.min(lum1, lum2) + 0.05);
+            }
+            function findBestColor(palette) {
+                const fallbackColor = '#0096fa'; const darkBgRgb = [21, 21, 21];
+                if (!palette) return { hex: fallbackColor, score: 0 };
+                const validSwatches = Object.values(palette).filter(swatch => swatch);
+                if (validSwatches.length === 0) return { hex: fallbackColor, score: 0 };
+                const scoredSwatches = validSwatches.map(swatch => {
+                    const contrast = getContrastRatio(swatch.getRgb(), darkBgRgb);
+                    const [h, s, l] = swatch.getHsl();
+                    const [r, g, b] = swatch.getRgb();
+                    const lightScore = Math.max(Math.max(r, g), b) - Math.min(Math.min(r, g), b);
+                    const score = (s * s * swatch.getPopulation()) + lightScore;
+                    return { hex: swatch.getHex(), score: score };
+                });
+                return scoredSwatches.sort((a, b) => b.score - a.score)[0];
+            }
+            function createAdvancedBokeh(palette) {
+                const container = document.querySelector('.bokeh-container');
+                if (!container || !palette) return;
+                container.innerHTML = ''; 
+                const colors = Object.values(palette).filter(s => s && s.getHsl()[1] > 0.3).sort((a, b) => b.getPopulation() - a.getPopulation()).slice(0, 5).map(s => s.getHex());
+                if (colors.length === 0) return;
+                const createDot = (colorHex) => {
+                    const dot = document.createElement('div'); dot.classList.add('bokeh-dot');
+                    const size = Math.random() * 150 + 50;
+                    const [r,g,b] = Vibrant.Util.hexToRgb(colorHex);
+                    dot.style.width = `${size}px`; dot.style.height = `${size}px`;
+                    dot.style.backgroundColor = `rgba(${r}, ${g}, ${b}, 0.5)`;
+                    dot.style.top = `${Math.random() * 100}%`; dot.style.left = `${Math.random() * 100}%`;
+                    dot.style.filter = `blur(${Math.random() * 20 + 15}px)`;
+                    dot.style.animationDelay = `${Math.random() * 20}s`;
+                    container.appendChild(dot);
+                };
+                for (let i = 0; i < 25; i++) createDot(colors[i % colors.length]);
+            }
+            
+            const processImageColors = (imageElement, options = {}) => {
+                if (!imageElement || imageElement.dataset.vibrantProcessed) return;
+                imageElement.crossOrigin = "Anonymous"; imageElement.dataset.vibrantProcessed = true;
+                const applyColors = () => {
+                    Vibrant.from(imageElement).getPalette((err, palette) => {
+                        if (err) { console.error("Vibrant.js failed for image:", imageElement.src, err); return; }
+                        const bestColor = findBestColor(palette).hex;
+                        if (options.isMainArtwork) {
+                            document.documentElement.style.setProperty('--vibrant-toggle-color', bestColor);
+                            createAdvancedBokeh(palette);
+                        }
+                        if (options.applyGlowTo) { options.applyGlowTo.style.setProperty('--glow-color', bestColor); }
+                        if (options.followButton && !options.followButton.classList.contains('following')) { options.followButton.style.backgroundColor = bestColor; }
+                        if (options.authorElement) {
+                            options.authorElement.style.color = bestColor;
+                            options.authorElement.style.setProperty('--glow-color', bestColor);
+                        }
+                    });
+                };
+                if (imageElement.complete) { applyColors(); } 
+                else { imageElement.onload = applyColors; imageElement.onerror = () => console.error("Image failed to load:", imageElement.src); }
+            };
+            
+            const mainArtwork = document.getElementById('main-artwork');
+            processImageColors(mainArtwork, { isMainArtwork: true, applyGlowTo: mainArtwork });
+            const mainPfp = document.getElementById('main-pfp');
+            const mainFollowBtn = document.getElementById('main-follow-btn');
+            processImageColors(mainPfp, { applyGlowTo: mainPfp, followButton: mainFollowBtn });
+
+            const mainArtistName = document.getElementById('main-artist-name').textContent;
+            const secondaryFollowBtn = document.getElementById('secondary-follow-btn');
+            
+            const syncFollowButtons = (isFollowing) => {
+                 [mainFollowBtn, secondaryFollowBtn].forEach(btn => {
+                    if (!btn) return;
+                    const textSpan = btn.querySelector('.follow-text');
+                    if (isFollowing) {
+                        btn.classList.add('following');
+                        textSpan.textContent = '✓ Following';
+                        btn.style.backgroundColor = ''; 
+                    } else {
+                        btn.classList.remove('following');
+                        textSpan.textContent = 'Follow';
+                        processImageColors(mainPfp, { followButton: btn });
+                    }
+                });
+            };
+
+            [mainFollowBtn, secondaryFollowBtn].forEach(btn => {
+                 btn.addEventListener('click', () => {
+                    const isCurrentlyFollowing = mainFollowBtn.classList.contains('following');
+                    btn.classList.add('animating');
+                    syncFollowButtons(!isCurrentlyFollowing);
+                    btn.addEventListener('animationend', () => btn.classList.remove('animating'), { once: true });
+                });
+            });
+
+            // --- Populate "By Artist Name" header ---
+            const otherWorksPfp = document.getElementById('other-works-pfp');
+            const otherWorksArtistName = document.getElementById('other-works-artist-name');
+            otherWorksPfp.src = mainPfp.src;
+            otherWorksArtistName.textContent = `By ${mainArtistName}`;
+            processImageColors(otherWorksPfp, { applyGlowTo: otherWorksPfp, authorElement: otherWorksArtistName });
+
+            const otherWorksContainer = document.getElementById('other-works-container');
+            if (otherWorksContainer) {
+                const otherArtworks = [
+                    { src: './static/img1.jpg', pageCount: 0 }, { src: './static/img2.jpg', pageCount: 0 },
+                    { src: './static/img7.jpg', pageCount: 2 }, { src: './static/img4.jpg', pageCount: 0 },
+                    { src: './static/img5.jpg', pageCount: 0 }, { src: './static/img6.jpg', pageCount: 0 },
+                    { src: './static/img8.jpg', pageCount: 5 }, { src: './static/img9.jpg', pageCount: 0 },
+                    { src: './static/img10.jpg', pageCount: 0 }, { src: './static/img11.jpg', pageCount: 0 },
+                ];
+
+                otherArtworks.forEach(artwork => {
+                    const item = document.createElement('div');
+                    item.className = 'other-work-item';
+                    const img = document.createElement('img');
+                    img.src = artwork.src;
+                    img.alt = 'Artwork thumbnail';
+                    processImageColors(img, { applyGlowTo: item });
+                    item.appendChild(img);
+                    
+                    if (artwork.pageCount > 1) {
+                        const indicator = document.createElement('span');
+                        indicator.className = 'multi-image-indicator';
+                        indicator.textContent = `+${artwork.pageCount}`;
+                        item.appendChild(indicator);
+                    }
+                    // --- MODIFICATION: Add animated heart to scroller items ---
+                    const heartWrapper = document.createElement('div');
+                    heartWrapper.className = 'heart-wrapper';
+                    const heart = document.createElement('div');
+                    heart.className = 'heart';
+                    heartWrapper.appendChild(heart);
+                    item.appendChild(heartWrapper);
+
+                    otherWorksContainer.appendChild(item);
+                });
+            }
+
+            // --- MODIFICATION: Delegated event listener for all heart animations ---
+            document.querySelector('.page-wrapper').addEventListener('click', function(e) {
+                // For Twitter-style hearts
+                if (e.target.matches('.heart')) {
+                    e.target.classList.toggle('is-active');
+                }
+                // For simple preview hearts
+                if (e.target.matches('.preview-heart-btn')) {
+                    const btn = e.target;
+                    btn.classList.toggle('liked');
+                    btn.textContent = btn.classList.contains('liked') ? '♥' : '♡';
+                }
+            });
+
+            document.querySelectorAll('.related-artwork-item').forEach(item => {
+                const previewCard = item.querySelector('.artist-profile-preview');
+                if (!previewCard) return;
+
+                const bannerSrc = previewCard.dataset.bannerSrc;
+                if(bannerSrc) {
+                    previewCard.style.setProperty('--banner-image', `url(${bannerSrc})`);
+                }
+
+                const pfp = previewCard.querySelector('.pfp-container img');
+                const followButton = previewCard.querySelector('.follow-button');
+                const pfpContainer = previewCard.querySelector('.pfp-container');
+
+                const processFollowButtonColor = async () => {
+                    const pfpPalettePromise = Vibrant.from(pfp).getPalette().catch(() => null);
+                    const bannerImg = new Image();
+                    bannerImg.crossOrigin = "Anonymous";
+                    bannerImg.src = bannerSrc || 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
+
+                    const bannerPalettePromise = new Promise(resolve => {
+                        bannerImg.onload = () => Vibrant.from(bannerImg).getPalette().then(resolve).catch(() => resolve(null));
+                        bannerImg.onerror = () => resolve(null);
+                    });
+
+                    const [pfpPalette, bannerPalette] = await Promise.all([pfpPalettePromise, bannerPalettePromise]);
+
+                    const pfpColor = findBestColor(pfpPalette);
+                    const bannerColor = findBestColor(bannerPalette);
+                    const bestColor = (bannerColor.score > pfpColor.score) ? bannerColor.hex : pfpColor.hex;
+                    
+                    if (followButton) followButton.style.backgroundColor = bestColor;
+                    if (pfpContainer) pfpContainer.style.setProperty('--glow-color', pfpColor.hex);
+                };
+                
+                if (pfp.complete) { processFollowButtonColor(); } 
+                else { pfp.onload = processFollowButtonColor; }
+
+                previewCard.querySelectorAll('.preview-art-item').forEach(artItem => {
+                    const artImg = artItem.querySelector('img');
+                    if (artImg) {
+                        processImageColors(artImg, { applyGlowTo: artItem });
+                    }
+                });
+            });
+
+            document.querySelectorAll('.interactive-image:not([data-vibrant-processed])').forEach(image => {
+                 processImageColors(image, { applyGlowTo: image });
+            });
+            const toggles = document.querySelectorAll('.toggle-switch input');
+            toggles.forEach(toggle => {
+                toggle.addEventListener('change', () => {
+                    const targetPanel = document.querySelector(toggle.dataset.target);
+                    if (targetPanel) targetPanel.classList.toggle('visible', toggle.checked);
+                });
+            });
+            const statsTitle = document.getElementById('stats-title');
+            if (statsTitle) {
+                const originalText = statsTitle.textContent;
+                let colors = ['#ff4d4d', '#ff944d', '#ffff4d', '#94ff4d', '#4dff94', '#4dffff', '#4d94ff', '#944dff', '#ff4dff'];
+                let titleAnimationInterval = null;
+                statsTitle.innerHTML = originalText.split('').map(char => `<span>${char}</span>`).join('');
+                const letterSpans = statsTitle.querySelectorAll('span');
+                statsTitle.addEventListener('mouseenter', () => {
+                    if (titleAnimationInterval) clearInterval(titleAnimationInterval);
+                    titleAnimationInterval = setInterval(() => {
+                        colors.push(colors.shift());
+                        letterSpans.forEach((span, index) => { span.style.setProperty('--letter-color', colors[index % colors.length]); });
+                    }, 150);
+                });
+                statsTitle.addEventListener('mouseleave', () => {
+                    clearInterval(titleAnimationInterval); titleAnimationInterval = null;
+                    letterSpans.forEach(span => span.style.removeProperty('--letter-color'));
+                });
+            }
+            const statItems = document.querySelectorAll('.stats-list li');
+            const funColors = ['#ff47ab', '#ffc107', '#00e5ff', '#76ff03', '#ff6f00', '#c62828', '#ab47bc'];
+            statItems.forEach(item => {
+                item.addEventListener('mouseenter', () => {
+                    const randomColor = funColors[Math.floor(Math.random() * funColors.length)];
+                    item.style.setProperty('--stat-glow-color', randomColor);
+                });
+                item.addEventListener('mouseleave', () => item.style.setProperty('--stat-glow-color', 'transparent'));
+            });
+
+            // --- DYNAMIC COMMENT SECTION LOGIC (Unchanged) ---
+            let commentsData = [
+                { id: 1, author: "User123", avatar: "./static/img4.jpg", text: "This is absolutely stunning! The way you've captured the light is just breathtaking.", timestamp: 1723766400000, likes: 25, dislikes: 2, lang: 'en', userVote: null, replies: [] },
+                { id: 2, author: "CreativeCat", avatar: "./static/img5.jpg", text: "Incredible work! I've been following you for a while and your improvement is inspiring.", timestamp: 1723680000000, likes: 42, dislikes: 1, lang: 'en', userVote: 'like', replies: [
+                    { id: 3, parentId: 2, author: "艺术家名字", avatar: "./static/img3.jpg", text: "Thank you so much! That really means a lot to me.", timestamp: 1723708800000, likes: 15, dislikes: 0, lang: 'en', userVote: null, replies: [] }
+                ]},
+                { id: 4, author: "芸術的なユーザー", avatar: "./static/img9.jpg", text: "素晴らしい作品ですね！キャラクターの表情がとても美しいです。", timestamp: 1723507200000, likes: 18, dislikes: 3, lang: 'ja', userVote: null, replies: [] },
+                { id: 5, author: "Catmeow", avatar: "./static/img12.jpg", text: "Wow, makes me want to log back into Genshin right now. Amazing job!", timestamp: 1723809600000, likes: 33, dislikes: 5, lang: 'en', userVote: 'dislike', replies: [] }
+            ];
+            let currentSortMethod = 'mostRecent';
+            const currentUserLanguage = 'en';
+            const commentsContainer = document.getElementById('comments-list-container');
+            const sortSelect = document.getElementById('comment-sort');
+            const commentCountHeader = document.getElementById('comment-count');
+
+            const findComment = (id, comments = commentsData) => {
+                for (const comment of comments) {
+                    if (comment.id === id) return comment;
+                    if (comment.replies.length > 0) {
+                        const foundInReply = findComment(id, comment.replies);
+                        if (foundInReply) return foundInReply;
+                    }
+                }
+                return null;
+            };
+            
+            const createCommentHTML = (comment) => {
+                const showTranslate = comment.lang !== currentUserLanguage;
+                const commentDate = new Date(comment.timestamp).toLocaleDateString("en-US", { year: 'numeric', month: 'long', day: 'numeric' });
+                const likeBtnClass = `like-btn ${comment.userVote === 'like' ? 'voted-like' : ''}`;
+                const dislikeBtnClass = `dislike-btn ${comment.userVote === 'dislike' ? 'voted-dislike' : ''}`;
+
+                return `
+                    <div class="comment" data-id="${comment.id}">
+                        <img src="${comment.avatar}" alt="${comment.author} Avatar" class="interactive-image comment-avatar">
+                        <div class="comment-content">
+                            <div class="comment-header">
+                                <p class="comment-author">${comment.author}</p>
+                                <p class="comment-date">${commentDate}</p>
+                            </div>
+                            <p class="comment-text">${comment.text}</p>
+                            <div class="comment-actions">
+                                <div class="vote-buttons">
+                                    <button class="${likeBtnClass}" title="Like">👍</button>
+                                    <span>${comment.likes}</span>
+                                    <button class="${dislikeBtnClass}" title="Dislike">👎</button>
+                                    <span>${comment.dislikes}</span>
+                                </div>
+                                <button class="action-btn-small reply-btn">Reply</button>
+                                ${showTranslate ? `<button class="action-btn-small translate-btn">Translate</button>` : ''}
+                                <button class="action-btn-small report-btn">Report</button>
+                            </div>
+                            <div class="reply-form">
+                                <textarea class="reply-input" placeholder="Write a reply..."></textarea>
+                                <button class="follow-button submit-reply-btn">Submit</button>
+                            </div>
+                            <div class="replies-container">${comment.replies.map(createCommentHTML).join('')}</div>
+                        </div>
+                    </div>
+                `;
+            };
+
+            const renderComments = () => {
+                const sortedComments = [...commentsData].sort((a, b) => {
+                    switch (currentSortMethod) {
+                        case 'mostLiked': return b.likes - a.likes;
+                        case 'mostDisliked': return b.dislikes - a.dislikes;
+                        case 'mostEngaged': return (b.likes + b.dislikes) - (a.likes + a.dislikes);
+                        case 'oldest': return a.timestamp - b.timestamp;
+                        case 'mostRecent': default: return b.timestamp - a.timestamp;
+                    }
+                });
+                commentsContainer.innerHTML = sortedComments.map(createCommentHTML).join('');
+                const totalComments = commentsData.reduce((acc, c) => acc + 1 + c.replies.length, 0);
+                commentCountHeader.textContent = `Comments (${totalComments})`;
+                commentsContainer.querySelectorAll('.comment').forEach(commentEl => {
+                    const avatar = commentEl.querySelector('.comment-avatar');
+                    const author = commentEl.querySelector('.comment-author');
+                    if (avatar && author) processImageColors(avatar, { applyGlowTo: author, authorElement: author });
+                });
+            };
+
+            sortSelect.addEventListener('change', (e) => {
+                const newSortMethod = e.target.value;
+                if (newSortMethod === currentSortMethod) return;
+                commentsContainer.classList.add('is-sorting');
+                const handleTransitionEnd = () => {
+                    currentSortMethod = newSortMethod;
+                    renderComments();
+                    commentsContainer.classList.remove('is-sorting');
+                };
+                commentsContainer.addEventListener('transitionend', handleTransitionEnd, { once: true });
+            });
+
+            commentsContainer.addEventListener('click', (e) => {
+                const commentElement = e.target.closest('.comment');
+                if (!commentElement) return;
+                const commentId = parseInt(commentElement.dataset.id);
+                const commentData = findComment(commentId);
+                if (!commentData) return;
+                
+                if (e.target.matches('.like-btn')) {
+                    const currentVote = commentData.userVote;
+                    if (currentVote === 'like') { commentData.userVote = null; commentData.likes--; } 
+                    else { if (currentVote === 'dislike') commentData.dislikes--; commentData.userVote = 'like'; commentData.likes++; }
+                    renderComments();
+                } else if (e.target.matches('.dislike-btn')) {
+                    const currentVote = commentData.userVote;
+                    if (currentVote === 'dislike') { commentData.userVote = null; commentData.dislikes--; } 
+                    else { if (currentVote === 'like') commentData.likes--; commentData.userVote = 'dislike'; commentData.dislikes++; }
+                    renderComments();
+                } else if (e.target.matches('.reply-btn')) {
+                    const replyForm = commentElement.querySelector('.reply-form');
+                    replyForm.classList.toggle('visible');
+                } else if (e.target.matches('.report-btn')) {
+                    alert(`Comment by ${commentData.author} has been reported. Thank you.`);
+                } 
+                else if (e.target.matches('.translate-btn')) {
+                    const button = e.target;
+                    const textElement = commentElement.querySelector('.comment-text');
+                    textElement.classList.add('text-is-fading-out');
+                    textElement.addEventListener('animationend', () => {
+                        textElement.classList.remove('text-is-fading-out');
+                        textElement.textContent = `[Translated from ${commentData.lang}] This is a wonderful piece of work! The character's expression is very beautiful.`;
+                        textElement.classList.add('text-is-fading-in');
+                        button.style.display = 'none';
+                        textElement.addEventListener('animationend', () => {
+                            textElement.classList.remove('text-is-fading-in');
+                        }, { once: true });
+                    }, { once: true });
+                }
+            });
+
+            renderComments();
+        });
+    </script>
+</body>
+</html>
